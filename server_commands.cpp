@@ -47,6 +47,14 @@ void initialize(){
 }
 
 
+void say_hello(){
+	cout << "Hello from function!" << endl;
+}
+
+void exit_program(){
+	exit(0);
+}
+
 void *get_in_addr(struct sockaddr *sa){
 	if(sa->sa_family == AF_INET){
 		return &(((struct sockaddr_in*)sa)->sin_addr);
@@ -54,9 +62,6 @@ void *get_in_addr(struct sockaddr *sa){
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-void say_hello(){
-	cout << "Hello from function!" << endl;
-}
 
 void show_ip(){
 	struct ifaddrs *ifaddr, *ifa;

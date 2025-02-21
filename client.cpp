@@ -1,27 +1,37 @@
-#include <iostream>
-#include <sys/socket.h>
-#include <cstring>
-#include <netinet/in.h>
-#include <unistd.h> 
+#include "client_commands.cpp"
 
-using namespace std;
+typedef void (*commandFunc)();
+typedef struct {
+	string command;
+	commandFunc function;
+} Command;
 
-int port = 3333;
+Command commands[] = {
+	{"hello", say_hello},
+	{"message", client_message},
+	{"setip", set_server_ip},
+	{"connect", server_connect},
+	{"exit", exit_program}
+};
+
+void execute_command(string command){
+	for (size_t i = 0; i < sizeof(commands)/sizeof(commands[0]); i++){
+		if (command == commands[i].command){
+			commands[i].function();
+			return;
+		}
+	}
+}
+
+void command_listen(){
+	string command;
+	while(1){
+		cin >> command;
+		execute_command(command);
+	}
+}
 
 int main(){
-	int clientSocket = socket(AF_INET, SOCK_STREAM, 0);
-
-	sockaddr_in serverAddress;
-	serverAddress.sin_family = AF_INET;
-	serverAddress.sin_port = htons(port);
-	serverAddress.sin_addr.s_addr = INADDR_ANY;	
-
-	connect(clientSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress));
-	
-	const char* message = "Hello, server!";
-	send(clientSocket, message, strlen(message), 0);
-
-	close(clientSocket);
-
+	command_listen();
 	return 0;
 }

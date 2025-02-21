@@ -11,7 +11,8 @@ Command commands[] = {
 	{"hello", say_hello},
 	{"server", server_run},
 	{"ip", show_ip}, 
-	{"message", server_message}
+	{"message", server_message},
+	{"exit", exit_program}
 };
 
 void execute_command(string command){
