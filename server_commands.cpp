@@ -178,8 +178,8 @@ int server_setup(){
 	return 0;
 }
 
-void process_message(char name[NAME_LEN], char message[MAXDATASIZE]){
-	printf("%s: %s\n", name, message);
+void process_message(int user_id, char message[MAXDATASIZE]){
+	printf("%s: %s\n", users[user_id], message);
 }
 
 int server_listen(){
@@ -257,8 +257,8 @@ int server_listen(){
 								ssize_t bytesRead = read(fds[i].fd, buf, MAXDATASIZE);
                 				if (bytesRead > 0) {
                     			buf[bytesRead] = '\0';
-                    			std::cout << "Parent received: " << buf << std::endl;
-                }
+								process_message(i, buf);
+                				}
 							}
 						}
 					}

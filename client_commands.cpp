@@ -8,6 +8,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <vector>
 
 using namespace std;
 
@@ -23,8 +24,8 @@ char name[NAME_LEN];
 struct addrinfo hints, *servinfo, *p;
 int rv;
 char s[INET6_ADDRSTRLEN], t[INET6_ADDRSTRLEN];
-
-
+int input_pipe[2];
+int receive_pipe[2];
 
 void say_hello(){
 	cout << "Hello from client" << endl;
@@ -153,11 +154,30 @@ void server_connect(){
 	buf[numbytes] = '\0';
 	printf("client: received '%s'\n", buf);
 	
-	while(1){
-		scanf("%s", &buf);
-		if (send(fd_send, buf, MAXDATASIZE, 0) == -1)
-			perror("send error");
+	if (pipe(input_pipe) == -1){
+		perror("input pipe error");
+		exit(1);
+	}	
+	if (!fork()){
+		close(input_pipe[0]); //don't need to listen
+		while(true){
+			scanf("%s", &buf);
+			write(input_pipe[1], buf, MAXDATASIZE); 
+		}
+	} else {
+		while(true){
+			ssize_t bytesRead = read(input_pipe[0], buf, MAXDATASIZE);
+			if (bytesRead > 0){
+				if (send(fd_send, buf, MAXDATASIZE, 0) == -1)
+					perror("send error");
+			}
+		}		
 	}
+	//while(1){
+	//	scanf("%s", &buf);
+	//	if (send(fd_send, buf, MAXDATASIZE, 0) == -1)
+	//		perror("send error");
+	//}
 	close(newfd);
 	close(fd_send);
 	close(fd_listen);
