@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <vector>
+#include <poll.h>
 
 using namespace std;
 
@@ -26,6 +27,7 @@ int rv;
 char s[INET6_ADDRSTRLEN], t[INET6_ADDRSTRLEN];
 int input_pipe[2];
 int receive_pipe[2];
+std::vector<struct pollfd> fds(2);
 
 void say_hello(){
 	cout << "Hello from client" << endl;
@@ -72,6 +74,10 @@ void *get_in_addr(struct sockaddr *sa){
 	}
 
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
+void process_message (char message[MAXDATASIZE]){
+	printf("%s\n", message); //SPLIT USER AND MESSAGE IN MESSAGE!!
 }
 
 void server_connect(){	
@@ -158,26 +164,71 @@ void server_connect(){
 		perror("input pipe error");
 		exit(1);
 	}	
-	if (!fork()){
+	if (pipe(receive_pipe) == -1){
+		perror("receive pipe error");
+		exit(1);
+	}
+
+	if (!fork()){ //child process for keyboard input
 		close(input_pipe[0]); //don't need to listen
 		while(true){
 			scanf("%s", &buf);
 			write(input_pipe[1], buf, MAXDATASIZE); 
 		}
-	} else {
+	} else if (!fork()){ //child process for listening to the server
+		close(receive_pipe[0]);
 		while(true){
-			ssize_t bytesRead = read(input_pipe[0], buf, MAXDATASIZE);
-			if (bytesRead > 0){
-				if (send(fd_send, buf, MAXDATASIZE, 0) == -1)
-					perror("send error");
+			int msg_len = recv(fd_listen, buf, MAXDATASIZE-1, 0);
+			if (msg_len == -1)
+				perror("recv - child");
+			if (msg_len == 0)
+				exit(0);
+			write(receive_pipe[1], buf, MAXDATASIZE); 
+		}
+	} else { //PARENT PROCESS
+
+		fds[0].fd = input_pipe[0];
+		fds[1].fd = receive_pipe[0];
+		for (int i  = 0; i < fds.size(); i++){
+			fds[i].events = POLLIN;
+		}
+		while(true){
+			int ready = poll(fds.data(), fds.size(), -1);
+			if (ready == -1){
+				perror("poll failed");
+				break;
 			}
+
+			for (int i = 0; i < fds.size(); i++){
+				if (fds[i].revents & POLLIN){
+					ssize_t bytesRead = read(fds[i].fd, buf, MAXDATASIZE);
+					if (bytesRead > 0) {
+						buf[bytesRead] = '\0';
+						
+						//actions sent to parent process
+						switch(i){
+							case 0:
+								if (send(fd_send, buf, MAXDATASIZE, 0)==-1)
+									perror("send error");
+								break;
+							case 1:
+									process_message(buf);	
+								break;
+							default:
+								break;
+						}
+					}
+				}
+			}
+
+			//ssize_t bytesRead = read(input_pipe[0], buf, MAXDATASIZE);
+			//if (bytesRead > 0){
+			//	if (send(fd_send, buf, MAXDATASIZE, 0) == -1)
+			//		perror("send error");
+			//}
 		}		
 	}
-	//while(1){
-	//	scanf("%s", &buf);
-	//	if (send(fd_send, buf, MAXDATASIZE, 0) == -1)
-	//		perror("send error");
-	//}
+
 	close(newfd);
 	close(fd_send);
 	close(fd_listen);
