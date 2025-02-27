@@ -19,7 +19,7 @@
 #define PORT "3434"
 #define PORT_NUM 3434
 #define BACKLOG 10
-#define MAXDATASIZE 500
+#define MAXDATASIZE 100
 #define NAME_LEN 20
 
 
@@ -180,9 +180,15 @@ int server_setup(){
 
 void process_message(int user_id, char message[MAXDATASIZE]){
 	printf("%s: %s\n", users[user_id], message);
+
+	char str[MAXDATASIZE+NAME_LEN+3] = "";
+	strcat(str, users[user_id]);	
+	strcat(str, ": ");
+	strcat(str, message);
+	strcat(str, "\0");
 	for (int i = 0; i < BACKLOG; i++){
 		if (fd_send[i] != -2){
-			if (send(fd_send[i], message, MAXDATASIZE, 0)==-1)
+			if (send(fd_send[i], str, MAXDATASIZE, 0)==-1)
 				perror("send error");
 		}
 	}
@@ -234,42 +240,16 @@ int server_listen(){
 					printf("buf: %s\n", buf);
 					printf("users[i]: %s\n", users[i]);
 					while(1){
-						int msg_len = recv(fd_listen[i], buf, MAXDATASIZE-1, 0);
+						int msg_len = recv(fd_listen[i], buf, MAXDATASIZE, 0);
 						if (msg_len == -1)
 							perror("recv - child");
 						if (msg_len == 0)
 							exit(0);
-
-						//functioning pipe, it was just stupid to use it
-						//write(pipe_fd[i][1], buf, msg_len);
+						
 						process_message(i, buf);
-						//exit(0);	
 						//don't forget to kill the child
 					}
-				}// else {
-				//	for (int i = 0; i < BACKLOG; i++){
-				//		fds[i].fd = pipe_fd[i][0]; 	
-				//		fds[i].events = POLLIN;
-				//	}  
-
-				//	while(true){
-				//		int ready = poll(fds.data(), fds.size(), -1);
-				//		if (ready == -1){
-				//			perror("poll failed");
-				//			break;
-				//		}
-
-				//		for (int i = 0; i < BACKLOG; i++){
-				//			if (fds[i].revents & POLLIN){
-				//				ssize_t bytesRead = read(fds[i].fd, buf, MAXDATASIZE);
-                //				if (bytesRead > 0) {
-                //    			buf[bytesRead] = '\0';
-				//				process_message(i, buf);
-                //				}
-				//			}
-				//		}
-				//	}
-				//}
+				}
 			}
 		}
 		close(new_fd);

@@ -173,6 +173,7 @@ void server_connect(){
 		close(input_pipe[0]); //don't need to listen
 		while(true){
 			scanf("%s", &buf);
+			cout << "\033[A\33[2K\r";
 			write(input_pipe[1], buf, MAXDATASIZE); 
 		}
 	} else if (!fork()){ //child process for listening to the server
@@ -203,7 +204,7 @@ void server_connect(){
 				if (fds[i].revents & POLLIN){
 					ssize_t bytesRead = read(fds[i].fd, buf, MAXDATASIZE);
 					if (bytesRead > 0) {
-						buf[bytesRead] = '\0';
+						//buf[bytesRead] = '\0';
 						
 						//actions sent to parent process
 						switch(i){
@@ -212,6 +213,7 @@ void server_connect(){
 									perror("send error");
 								break;
 							case 1:
+									buf[bytesRead]='\0';
 									process_message(buf);	
 								break;
 							default:
@@ -220,12 +222,6 @@ void server_connect(){
 					}
 				}
 			}
-
-			//ssize_t bytesRead = read(input_pipe[0], buf, MAXDATASIZE);
-			//if (bytesRead > 0){
-			//	if (send(fd_send, buf, MAXDATASIZE, 0) == -1)
-			//		perror("send error");
-			//}
 		}		
 	}
 
