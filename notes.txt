@@ -1,0 +1,1 @@
+Add pipe() for child processes of the server to be able to communicate with parent process if necessary

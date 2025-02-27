@@ -4,6 +4,8 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <string>
+#include <poll.h>
+#include <vector>
 
 //imports from c (just coppied)
 #include <sys/types.h>
@@ -24,10 +26,12 @@
 int sockfd, new_fd, new_fds[BACKLOG]; //listen on sock_fd, new connections on new_fd	
 int fd_listen[BACKLOG];
 int fd_send[BACKLOG];
+int pipe_fd[BACKLOG][2];
 char users[BACKLOG][NAME_LEN];
 int fd_num = 0;
 struct addrinfo hints, *servinfo, *p;
 struct sockaddr_storage their_addr;
+std::vector<struct pollfd> fds(BACKLOG);
 
 socklen_t sin_size;
 struct sigaction sa;
@@ -174,6 +178,10 @@ int server_setup(){
 	return 0;
 }
 
+void process_message(char name[NAME_LEN], char message[MAXDATASIZE]){
+	printf("%s: %s\n", name, message);
+}
+
 int server_listen(){
 	char buf[MAXDATASIZE];
 	while(1) {
@@ -211,8 +219,12 @@ int server_listen(){
 		
 		for (int i = 0; i < BACKLOG; ++i){
 			if (fd_listen[i] != -2){
-				if (!fork()){
-
+				if( pipe(pipe_fd[i])<0){
+					perror("pipe error");
+					exit(1);
+				}
+				if (!fork()){ //add error possibility (use switch)
+					close(pipe_fd[i][0]); //maybe delete? Might need to listen as well
 					printf("buf: %s\n", buf);
 					printf("users[i]: %s\n", users[i]);
 					while(1){
@@ -221,10 +233,34 @@ int server_listen(){
 							perror("recv - child");
 						if (msg_len == 0)
 							exit(0);
-						printf("user %s: %s\n", users[i], buf);
-						
+
+						write(pipe_fd[i][1], buf, msg_len);
+						//process_message(users[i], buf);
 						//exit(0);	
 						//don't forget to kill the child
+					}
+				} else {
+					for (int i = 0; i < BACKLOG; i++){
+						fds[i].fd = pipe_fd[i][0]; 	
+						fds[i].events = POLLIN;
+					}  
+
+					while(true){
+						int ready = poll(fds.data(), fds.size(), -1);
+						if (ready == -1){
+							perror("poll failed");
+							break;
+						}
+
+						for (int i = 0; i < BACKLOG; i++){
+							if (fds[i].revents & POLLIN){
+								ssize_t bytesRead = read(fds[i].fd, buf, MAXDATASIZE);
+                				if (bytesRead > 0) {
+                    			buf[bytesRead] = '\0';
+                    			std::cout << "Parent received: " << buf << std::endl;
+                }
+							}
+						}
 					}
 				}
 			}

@@ -31,7 +31,18 @@ void command_listen(){
 	}
 }
 
-int main(){
+void setup_user(char *str){
+	printf("connected as: %s\n", str);
+	strcpy(name, str);
+	printf("%s\n", name);
+}
+
+int main(int argc, char *argv[]){
+	if (argc != 2) {
+		fprintf(stderr, "use: ./client [name]\n");
+		exit(0);
+	}
+	setup_user(argv[1]);
 	command_listen();
 	return 0;
 }
